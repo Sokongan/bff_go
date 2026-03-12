@@ -11,9 +11,9 @@ type Resources struct {
 	Store *client.Store
 }
 
-func NewResources(ctx context.Context, DbDSN, storeAddr, storePassword string, storeDB int) (*Resources, error) {
+func NewResources(ctx context.Context, dbDSN, storeAddr, storePassword string, storeDB int) (*Resources, error) {
 
-	db, err := client.NewDbPool(ctx, DbDSN)
+	db, err := client.NewDbPool(ctx, dbDSN)
 	if err != nil {
 		return nil, fmt.Errorf("postgres connection: %w", err)
 	}

@@ -1,4 +1,3 @@
-// internal/gateway/oauth.go
 package oauth_gateway
 
 import (
@@ -14,7 +13,7 @@ type OAuthAuthorizationGateway struct {
 	Internal *oauth2.Config
 }
 
-func NewOAuthGateway(browser, internal *oauth2.Config) (*OAuthAuthorizationGateway, error) {
+func NewOAuthAuthorizationGateway(browser, internal *oauth2.Config) (*OAuthAuthorizationGateway, error) {
 	if browser == nil || internal == nil {
 		return nil, errors.New("oauth config is nil")
 	}

@@ -26,7 +26,7 @@ type SessionStore interface {
 }
 
 type IDTokenVerifier interface {
-	Verify(ctx context.Context, rawIDToken string) (IDTokenClaims, error)
+	Verify(ctx context.Context, rawIDToken string) (domain.IDTokenClaims, error)
 }
 
 type PKCEStore interface {

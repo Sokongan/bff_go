@@ -1,4 +1,4 @@
-package sdk
+package permission_sdk
 
 import (
 	client "github.com/ory/keto-client-go/v25"
@@ -9,16 +9,13 @@ type PermissionSDK struct {
 	Public *client.APIClient
 }
 
-func PermissionSDK(adminURL, publicURL string) *PermissionSDK {
+func NewPermissionSDK(adminURL, publicURL string) *PermissionSDK {
 	publicCfg := client.NewConfiguration()
-	if publicURL != "" {
-		publicCfg.Servers = []client.ServerConfiguration{{URL: publicURL}}
-	}
+	publicCfg.Servers = []client.ServerConfiguration{{URL: publicURL}}
 
 	adminCfg := client.NewConfiguration()
-	if adminURL != "" {
-		adminCfg.Servers = []client.ServerConfiguration{{URL: adminURL}}
-	}
+	adminCfg.Servers = []client.ServerConfiguration{{URL: adminURL}}
+
 	return &PermissionSDK{
 		Admin:  client.NewAPIClient(adminCfg),
 		Public: client.NewAPIClient(publicCfg),

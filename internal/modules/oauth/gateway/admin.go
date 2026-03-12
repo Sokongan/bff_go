@@ -1,4 +1,4 @@
-package gateway
+package oauth_gateway
 
 import (
 	"context"
