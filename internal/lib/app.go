@@ -1,9 +1,9 @@
 package lib
 
 import (
-	"sso-bff/internal"
 	"sso-bff/internal/config"
 	"sso-bff/internal/db"
+	internal "sso-bff/modules"
 )
 
 type App struct {

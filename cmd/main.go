@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"sso-bff/internal"
 	"sso-bff/internal/config"
 	"sso-bff/internal/db"
 	"sso-bff/internal/lib"
+	"sso-bff/modules"
 
 	"github.com/joho/godotenv"
 )
@@ -35,7 +35,7 @@ func main() {
 	}
 	defer resources.Close()
 
-	sdks := internal.NewSDKs(cfg)
+	sdks := modules.NewSDKs(cfg)
 
 	app := &lib.App{
 		Config:    cfg,
@@ -43,4 +43,5 @@ func main() {
 		SDK:       sdks,
 	}
 
+	_ = app
 }
