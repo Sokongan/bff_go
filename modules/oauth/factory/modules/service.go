@@ -1,4 +1,4 @@
-package oauth_factory
+package oauth_factory_modules
 
 import (
 	"sso-bff/modules/app"
@@ -43,6 +43,7 @@ func NewOAuthService(
 			oauthClient,
 			pkceStore,
 			redirectStore,
+			appRegistry,
 			pkceTTL,
 		),
 		SessionService: service_oauth.NewSessionService(

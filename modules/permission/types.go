@@ -21,3 +21,8 @@ type PermissionClient interface {
 		params permission_domain.ListTuplesParams,
 	) (permission_domain.ListTuplesResult, error)
 }
+
+type RolePayload struct {
+	Object string `json:"object"`
+	Role   string `json:"role"`
+}

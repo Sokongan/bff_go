@@ -3,6 +3,7 @@ package oauth_helper_redirect
 import (
 	"encoding/json"
 	"sso-bff/modules/oauth"
+	"strings"
 )
 
 func EncodeRedirectPayload(appID, path string) (string, error) {
@@ -31,4 +32,14 @@ func DecodeRedirectPayload(data string) (string, string, error) {
 	}
 
 	return payload.AppID, payload.Path, nil
+}
+
+func IsSafeRedirectPath(value string) bool {
+	if value == "" {
+		return false
+	}
+	if strings.HasPrefix(value, "//") || strings.Contains(value, "://") {
+		return false
+	}
+	return strings.HasPrefix(value, "/")
 }

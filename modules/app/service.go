@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	app_domain "sso-bff/internal/domain/app"
 	"sso-bff/modules/oauth"
 	"strings"
@@ -147,4 +148,35 @@ func (s *AppService) ResolveRegistry(
 	s.appMu.Unlock()
 
 	return registry, nil
+}
+
+func (s *AppService) ResolveAppIDByDSN(
+	ctx context.Context,
+	dsn string,
+) (string, error) {
+	if s == nil {
+		return "", ErrServiceMisconfigured
+	}
+
+	dsn = NormalizeBaseURL(dsn)
+	if dsn == "" {
+		return "", errors.New("dsn required")
+	}
+
+	if s.repo == nil {
+		return "", ErrServiceMisconfigured
+	}
+
+	registry, err := s.ResolveRegistry(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	for id, appRedirect := range registry {
+		if NormalizeBaseURL(appRedirect.BaseURL) == dsn {
+			return id, nil
+		}
+	}
+
+	return "", fmt.Errorf("unknown app dsn: %s", dsn)
 }

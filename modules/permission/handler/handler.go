@@ -1,31 +1,33 @@
-package permission
+package permission_handler
 
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
+
 	audit_domain "sso-bff/internal/domain/audit"
 	permission_domain "sso-bff/internal/domain/permission"
 	"sso-bff/internal/httpx"
 	"sso-bff/modules/audit"
 	"sso-bff/modules/oauth"
-	"strconv"
-	"strings"
+	permission_factory_modules "sso-bff/modules/permission/factory/modules"
 )
 
-type PermissionHandlerType struct {
-	perm     *PermissionService
+type PermissionHandler struct {
+	perm     *permission_factory_modules.PermissionService
 	sessions oauth.SubjectResolver
 	audit    audit.AuditWriter
 	cookies  httpx.CookieConfig
 }
 
 func NewPermissionHandler(
-	perm *PermissionService,
+	perm *permission_factory_modules.PermissionService,
 	sessions oauth.SubjectResolver,
 	audit audit.AuditWriter,
 	cookies httpx.CookieConfig,
-) *PermissionHandlerType {
-	return &PermissionHandlerType{
+) *PermissionHandler {
+	return &PermissionHandler{
 		perm:     perm,
 		sessions: sessions,
 		audit:    audit,
@@ -33,7 +35,7 @@ func NewPermissionHandler(
 	}
 }
 
-func (h *PermissionHandlerType) WriteTuple(
+func (h *PermissionHandler) WriteTuple(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -173,7 +175,7 @@ func (h *PermissionHandlerType) WriteTuple(
 	)
 }
 
-func (h *PermissionHandlerType) CheckTuple(
+func (h *PermissionHandler) CheckTuple(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -285,7 +287,7 @@ func (h *PermissionHandlerType) CheckTuple(
 	)
 }
 
-func (h *PermissionHandlerType) ListTuples(
+func (h *PermissionHandler) ListTuples(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {

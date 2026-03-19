@@ -102,6 +102,17 @@ func (s *SessionService) GetSession(
 	return s.sessions.GetSession(ctx, sessionID)
 }
 
+func (s *SessionService) SubjectBySessionID(
+	ctx context.Context,
+	sessionID string,
+) (string, error) {
+	session, err := s.GetSession(ctx, sessionID)
+	if err != nil {
+		return "", err
+	}
+	return session.Subject, nil
+}
+
 func (s *SessionService) DeleteSession(
 	ctx context.Context,
 	sessionID string,

@@ -2,7 +2,6 @@ package lib
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 )
 
@@ -20,9 +19,4 @@ func PCKEVerifier() (string, error) {
 
 func PKCEStateToken() (string, error) {
 	return randomToken(32)
-}
-
-func PKCEChallenge(verifier string) string {
-	sum := sha256.Sum256([]byte(verifier))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

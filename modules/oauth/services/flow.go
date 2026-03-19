@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sso-bff/internal/lib"
+	"sso-bff/modules/app"
 	"sso-bff/modules/oauth"
 	oauth_helper_redirect "sso-bff/modules/oauth/helper/redirect"
-
 	"time"
 
 	"golang.org/x/oauth2"
@@ -17,12 +17,14 @@ type FlowService struct {
 	pkce      oauth.PKCEStorePort
 	redirects oauth.RedirectStorePort
 	pkceTTL   time.Duration
+	registry  *app.AppService
 }
 
 func NewFlowService(
 	flow oauth.OAuthClientPort,
 	pkce oauth.PKCEStorePort,
 	redirects oauth.RedirectStorePort,
+	registry *app.AppService,
 	pkceTTL time.Duration,
 ) *FlowService {
 
@@ -30,6 +32,7 @@ func NewFlowService(
 		flow:      flow,
 		pkce:      pkce,
 		redirects: redirects,
+		registry:  registry,
 		pkceTTL:   pkceTTL,
 	}
 }

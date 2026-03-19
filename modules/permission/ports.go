@@ -22,3 +22,11 @@ type PermissionChecker interface {
 		params permission_domain.ListTuplesParams,
 	) (permission_domain.ListTuplesResult, error)
 }
+
+type PermissionServicePort interface {
+	WriteTuple(
+		ctx context.Context,
+		tuple permission_domain.RelationTuple,
+	) error
+	PermissionChecker
+}

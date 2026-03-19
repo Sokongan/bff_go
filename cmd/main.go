@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"sso-bff/internal/config"
 	"sso-bff/internal/db"
-	"sso-bff/internal/lib"
+	"sso-bff/internal/factory"
 	"sso-bff/modules"
 
 	"github.com/joho/godotenv"
@@ -37,11 +39,34 @@ func main() {
 
 	sdks := modules.NewSDKs(cfg)
 
-	app := &lib.App{
-		Config:    cfg,
-		Resources: resources,
-		SDK:       sdks,
+	module, err := factory.NewHandlers(cfg, resources, sdks)
+	if err != nil {
+		log.Fatalf("failed to build modules: %v", err)
 	}
 
-	_ = app
+	server := &http.Server{
+		Addr:    cfg.ServerAddr,
+		Handler: module.Handler,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+
+	log.Printf("starting HTTP server on %s", cfg.ServerAddr)
+
+	select {
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server error: %v", err)
+		}
+	case <-ctx.Done():
+		if shutdownErr := server.Shutdown(context.Background()); shutdownErr != nil {
+			log.Fatalf("shutdown error: %v", shutdownErr)
+		}
+		if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server error: %v", err)
+		}
+	}
 }

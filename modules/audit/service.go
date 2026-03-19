@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	audit_domain "sso-bff/internal/domain/audit"
-	"sso-bff/modules/oauth"
 )
 
 var ErrAuditMisconfigured = errors.New("audit service misconfigured")
@@ -21,7 +20,7 @@ func (s *AuditService) Insert(
 	ctx context.Context,
 	e audit_domain.AuditEvent) error {
 	if s == nil || s.repo == nil {
-		return oauth.ErrServiceMisconfigured
+		return ErrAuditMisconfigured
 	}
 	return s.repo.Insert(ctx, e)
 }

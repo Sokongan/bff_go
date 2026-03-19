@@ -12,6 +12,7 @@ type Config struct {
 	Oauth      *oauth.OAuthConfig
 	Identity   *services_config.IdentityConfig
 	Permission *services_config.PermissionConfig
+	ServerAddr string
 }
 
 func LoadConfig() (*Config, error) {
@@ -43,5 +44,6 @@ func LoadConfig() (*Config, error) {
 		Oauth:      oauth,
 		Identity:   identity,
 		Permission: permission,
+		ServerAddr: loadServerAddress(),
 	}, nil
 }

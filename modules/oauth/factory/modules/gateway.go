@@ -1,4 +1,4 @@
-package oauth_factory
+package oauth_factory_modules
 
 import (
 	"errors"

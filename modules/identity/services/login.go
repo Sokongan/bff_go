@@ -29,7 +29,8 @@ type IdentityLoginService struct {
 	oauth identity.OauthLoginAdmin
 }
 
-func NewIdentityLoginService(ident identity.IdentityLoginClient,
+func NewIdentityLoginService(
+	ident identity.IdentityLoginClient,
 	oauth identity.OauthLoginAdmin,
 ) *IdentityLoginService {
 

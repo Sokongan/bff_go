@@ -2,8 +2,9 @@ package oauth_gateway
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
-	"sso-bff/internal/lib"
 
 	"golang.org/x/oauth2"
 )
@@ -13,7 +14,10 @@ type OAuthAuthorizationGateway struct {
 	Internal *oauth2.Config
 }
 
-func NewOAuthAuthorizationGateway(browser, internal *oauth2.Config) (*OAuthAuthorizationGateway, error) {
+func NewOAuthAuthorizationGateway(
+	browser,
+	internal *oauth2.Config,
+) (*OAuthAuthorizationGateway, error) {
 	if browser == nil || internal == nil {
 		return nil, errors.New("oauth config is nil")
 	}
@@ -30,7 +34,7 @@ func (g *OAuthAuthorizationGateway) AuthCodeURL(
 	opts := []oauth2.AuthCodeOption{}
 	if codeVerifier != "" {
 		opts = append(opts,
-			oauth2.SetAuthURLParam("code_challenge", lib.PKCEChallenge(codeVerifier)),
+			oauth2.SetAuthURLParam("code_challenge", pkceChallenge(codeVerifier)),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		)
 	}
@@ -58,4 +62,9 @@ func (g *OAuthAuthorizationGateway) Refresh(
 	}
 	token := &oauth2.Token{RefreshToken: refreshToken}
 	return g.Internal.TokenSource(ctx, token).Token()
+}
+
+func pkceChallenge(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

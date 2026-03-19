@@ -60,3 +60,46 @@ func (a *AcceptFlowService) Consent(
 		accessClaims,
 	)
 }
+
+func (s *AcceptFlowService) OauthConsent(
+	ctx context.Context,
+	challenge string,
+	identity *identity_domain.Identity,
+) (string, error) {
+	if s == nil || s.admin == nil {
+		return "", oauth.ErrServiceMisconfigured
+	}
+
+	req, err := s.admin.GetConsentRequest(ctx, challenge)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", oauth.ErrHydraRequest, err)
+	}
+
+	if !oauth_helper_token.IsAllowedClient(req.ClientID, s.allowedClients) {
+		return "", fmt.Errorf("%w: unauthorized client", oauth.ErrHydraRequest)
+	}
+
+	grantScopes := oauth_helper_token.FilterScopes(req.RequestedScope, s.allowedScopes)
+
+	subject := req.Subject
+	if identity != nil && identity.ID != "" {
+		subject = identity.ID
+	}
+
+	claims := map[string]any{
+		"sub": subject,
+	}
+	accessClaims := map[string]any{
+		"sub": subject,
+	}
+	if identity != nil && len(identity.Traits) > 0 {
+		accessClaims["traits"] = identity.Traits
+	}
+
+	redirect, err := s.admin.AcceptConsent(ctx, challenge, grantScopes, req.Audience, claims, accessClaims)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", oauth.ErrHydraRequest, err)
+	}
+
+	return redirect, nil
+}

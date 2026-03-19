@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"net/http"
+	"sso-bff/modules/permission"
 	"time"
 )
 
@@ -53,4 +54,13 @@ type AppRedirect struct {
 type RedirectPayload struct {
 	AppID string `json:"app_id"`
 	Path  string `json:"path"`
+}
+
+type SessionPayload struct {
+	Authenticated bool                     `json:"authenticated"`
+	Sub           string                   `json:"sub"`
+	Exp           time.Time                `json:"exp"`
+	Profile       map[string]any           `json:"profile,omitempty"`
+	Roles         []permission.RolePayload `json:"roles,omitempty"`
+	ProfileSource string                   `json:"profile_source,omitempty"`
 }

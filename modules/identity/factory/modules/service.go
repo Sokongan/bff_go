@@ -1,4 +1,4 @@
-package identity_factory
+package identity_factory_modules
 
 import (
 	identity_gateway "sso-bff/modules/identity/gateway"
