@@ -18,7 +18,6 @@ import (
 )
 
 func main() {
-	// Load .env only for local dev
 	if os.Getenv("ENV") != "prod" {
 		_ = godotenv.Load()
 	}
