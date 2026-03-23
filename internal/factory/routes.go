@@ -11,6 +11,22 @@ import (
 	permission_handler "sso-bff/modules/permission/handler"
 )
 
+const (
+	healthPath      = "/health"
+	discoveriesPath = "/discoveries"
+)
+
+type routeSpec struct {
+	path    string
+	methods []string
+	handler http.HandlerFunc
+}
+
+type discoveryRoute struct {
+	Path    string   `json:"path"`
+	Methods []string `json:"methods"`
+}
+
 type httpHandlers struct {
 	OAuth            *oauth_handler.OAuthHandler
 	IdentityLogin    *identity_handler.IdentityLoginHandler
@@ -22,64 +38,35 @@ type httpHandlers struct {
 }
 
 func registerRoutes(mux *http.ServeMux, handlers httpHandlers) {
-	mux.HandleFunc("/api/login", handlers.OAuth.Login)
-	mux.HandleFunc("/api/callback", handlers.OAuth.Callback)
-	mux.HandleFunc("/api/consent", handlers.OAuth.Consent)
-	mux.HandleFunc("/api/launch", handlers.OAuth.LaunchApp)
-	mux.HandleFunc("/api/logout", verbHandler(http.MethodPost, handlers.OAuth.Logout))
-	mux.HandleFunc("/api/session", handlers.OAuth.Session)
-	mux.HandleFunc("/api/session/refresh", verbHandler(http.MethodPost, handlers.OAuth.Refresh))
+	routeSpecs := []routeSpec{
+		{path: "/api/login", methods: []string{http.MethodGet}, handler: handlers.OAuth.Login},
+		{path: "/api/callback", methods: []string{http.MethodGet}, handler: handlers.OAuth.Callback},
+		{path: "/api/consent", methods: []string{http.MethodGet}, handler: handlers.OAuth.Consent},
+		{path: "/api/launch", methods: []string{http.MethodGet}, handler: handlers.OAuth.LaunchApp},
+		{path: "/api/logout", methods: []string{http.MethodPost}, handler: verbHandler(http.MethodPost, handlers.OAuth.Logout)},
+		{path: "/api/session", methods: []string{http.MethodGet}, handler: handlers.OAuth.Session},
+		{path: "/api/session/refresh", methods: []string{http.MethodPost}, handler: verbHandler(http.MethodPost, handlers.OAuth.Refresh)},
+		{path: "/api/identity/login", methods: []string{http.MethodPost}, handler: handlers.IdentityLogin.SubmitLogin},
+		{path: "/api/identity/settings", methods: []string{http.MethodGet, http.MethodPost}, handler: identitySettingsHandler(handlers.IdentitySettings)},
+		{path: "/api/admin/identities", methods: []string{http.MethodGet, http.MethodPost}, handler: identityAdminHandler(handlers.IdentityAdmin)},
+		{path: "/api/permissions/tuple", methods: []string{http.MethodPost}, handler: handlers.Permission.WriteTuple},
+		{path: "/api/permissions/check", methods: []string{http.MethodGet}, handler: handlers.Permission.CheckTuple},
+		{path: "/api/permissions", methods: []string{http.MethodGet}, handler: handlers.Permission.ListTuples},
+		{path: "/api/audit/events", methods: []string{http.MethodGet}, handler: handlers.Audit.List},
+		{path: "/api/apps", methods: []string{http.MethodGet, http.MethodPost}, handler: appRootHandler(handlers.App)},
+		{path: "/api/apps/", methods: []string{http.MethodGet, http.MethodPut, http.MethodDelete}, handler: appIDHandler(handlers.App)},
+		{path: healthPath, methods: []string{http.MethodGet}, handler: healthCheckHandler()},
+	}
 
-	mux.HandleFunc("/api/identity/login", handlers.IdentityLogin.SubmitLogin)
-	mux.HandleFunc("/api/identity/settings", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.IdentitySettings.Start(w, r)
-		case http.MethodPost:
-			handlers.IdentitySettings.Submit(w, r)
-		default:
-			methodNotAllowed(w)
-		}
+	discovered := appendRouteSpecs(mux, routeSpecs)
+
+	discoveryRoutes := append([]discoveryRoute(nil), discovered...)
+	discoveryRoutes = append(discoveryRoutes, discoveryRoute{
+		Path:    discoveriesPath,
+		Methods: []string{http.MethodGet},
 	})
 
-	mux.HandleFunc("/api/admin/identities", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.IdentityAdmin.ListIdentities(w, r)
-		case http.MethodPost:
-			handlers.IdentityAdmin.CreateIdentity(w, r)
-		default:
-			methodNotAllowed(w)
-		}
-	})
-
-	mux.HandleFunc("/api/permissions/tuple", handlers.Permission.WriteTuple)
-	mux.HandleFunc("/api/permissions/check", handlers.Permission.CheckTuple)
-	mux.HandleFunc("/api/permissions", handlers.Permission.ListTuples)
-	mux.HandleFunc("/api/audit/events", handlers.Audit.List)
-
-	mux.HandleFunc("/api/apps", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.App.List(w, r)
-		case http.MethodPost:
-			handlers.App.Create(w, r)
-		default:
-			methodNotAllowed(w)
-		}
-	})
-	mux.HandleFunc("/api/apps/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.App.Get(w, r)
-		case http.MethodPut:
-			handlers.App.Update(w, r)
-		case http.MethodDelete:
-			handlers.App.Delete(w, r)
-		default:
-			methodNotAllowed(w)
-		}
-	})
+	mux.HandleFunc(discoveriesPath, discoveriesHandler(discoveryRoutes))
 }
 
 func verbHandler(method string, handler http.HandlerFunc) http.HandlerFunc {
@@ -98,4 +85,98 @@ func methodNotAllowed(w http.ResponseWriter) {
 		http.StatusMethodNotAllowed,
 		map[string]string{"error": "method not allowed"},
 	)
+}
+
+func appendRouteSpecs(mux *http.ServeMux, specs []routeSpec) []discoveryRoute {
+	routes := make([]discoveryRoute, 0, len(specs))
+	for _, spec := range specs {
+		mux.HandleFunc(spec.path, spec.handler)
+		routes = append(routes, discoveryRoute{
+			Path:    spec.path,
+			Methods: copyMethods(spec.methods),
+		})
+	}
+	return routes
+}
+
+func copyMethods(methods []string) []string {
+	dst := make([]string, len(methods))
+	copy(dst, methods)
+	return dst
+}
+
+func healthCheckHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	}
+}
+
+func discoveriesHandler(routes []discoveryRoute) http.HandlerFunc {
+	captured := make([]discoveryRoute, len(routes))
+	copy(captured, routes)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			methodNotAllowed(w)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string][]discoveryRoute{"routes": captured})
+	}
+}
+
+func identitySettingsHandler(handler *identity_handler.IdentitySettingsHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.Start(w, r)
+		case http.MethodPost:
+			handler.Submit(w, r)
+		default:
+			methodNotAllowed(w)
+		}
+	}
+}
+
+func identityAdminHandler(handler *identity_handler.IdentityAdminHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.ListIdentities(w, r)
+		case http.MethodPost:
+			handler.CreateIdentity(w, r)
+		default:
+			methodNotAllowed(w)
+		}
+	}
+}
+
+func appRootHandler(handler *app.AppHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.List(w, r)
+		case http.MethodPost:
+			handler.Create(w, r)
+		default:
+			methodNotAllowed(w)
+		}
+	}
+}
+
+func appIDHandler(handler *app.AppHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handler.Get(w, r)
+		case http.MethodPut:
+			handler.Update(w, r)
+		case http.MethodDelete:
+			handler.Delete(w, r)
+		default:
+			methodNotAllowed(w)
+		}
+	}
 }
