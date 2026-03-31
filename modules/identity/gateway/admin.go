@@ -56,8 +56,9 @@ func (g *IdentityAdminGateway) CreateIdentity(
 	}
 
 	return &identity_domain.Identity{
-		ID:     id,
-		Traits: identity_helper.ExtractTraits(created.GetTraits()),
+		ID:             id,
+		Traits:         identity_helper.ExtractTraits(created.GetTraits()),
+		MetadataPublic: identity_helper.ExtractTraits(created.GetMetadataPublic()),
 	}, nil
 }
 
@@ -113,8 +114,9 @@ func (g *IdentityAdminGateway) GetIdentity(
 	}
 
 	return &identity_domain.Identity{
-		ID:     ident.GetId(),
-		Traits: identity_helper.ExtractTraits(ident.GetTraits()),
+		ID:             ident.GetId(),
+		Traits:         identity_helper.ExtractTraits(ident.GetTraits()),
+		MetadataPublic: identity_helper.ExtractTraits(ident.GetMetadataPublic()),
 	}, nil
 }
 func (g *IdentityAdminGateway) ListIdentities(
@@ -153,8 +155,9 @@ func (g *IdentityAdminGateway) ListIdentities(
 
 	for _, ident := range idents {
 		out = append(out, identity_domain.Identity{
-			ID:     ident.GetId(),
-			Traits: identity_helper.ExtractTraits(ident.GetTraits()),
+			ID:             ident.GetId(),
+			Traits:         identity_helper.ExtractTraits(ident.GetTraits()),
+			MetadataPublic: identity_helper.ExtractTraits(ident.GetMetadataPublic()),
 		})
 	}
 

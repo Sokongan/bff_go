@@ -57,10 +57,11 @@ type RedirectPayload struct {
 }
 
 type SessionPayload struct {
-	Authenticated bool                     `json:"authenticated"`
-	Sub           string                   `json:"sub"`
-	Exp           time.Time                `json:"exp"`
-	Profile       map[string]any           `json:"profile,omitempty"`
-	Roles         []permission.RolePayload `json:"roles,omitempty"`
-	ProfileSource string                   `json:"profile_source,omitempty"`
+	Authenticated  bool                     `json:"authenticated"`
+	Sub            string                   `json:"sub"`
+	Exp            time.Time                `json:"exp"`
+	Profile        map[string]any           `json:"profile,omitempty"`
+	Roles          []permission.RolePayload `json:"roles,omitempty"`
+	OrganizationID any                      `json:"organization_id,omitempty"`
+	ProfileSource  string                   `json:"profile_source,omitempty"`
 }

@@ -76,7 +76,8 @@ func (h *OAuthHandler) Session(
 			r.Header.Get("Cookie"),
 		)
 
-		if err == nil && ident != nil && len(ident.Traits) > 0 {
+		if err == nil && ident != nil &&
+			(len(ident.Traits) > 0 || len(ident.MetadataPublic) > 0) {
 			profileSource = "cookie"
 		} else {
 			if session.KratosToken != "" {
@@ -85,7 +86,8 @@ func (h *OAuthHandler) Session(
 					session.KratosToken,
 				); altErr == nil {
 					ident = alt
-					if ident != nil && len(ident.Traits) > 0 {
+					if ident != nil &&
+						(len(ident.Traits) > 0 || len(ident.MetadataPublic) > 0) {
 						profileSource = "token"
 					}
 				}
@@ -105,8 +107,17 @@ func (h *OAuthHandler) Session(
 					profile["name"] = name
 				}
 			}
+			if username, ok := ident.Traits["username"].(string); ok &&
+				strings.TrimSpace(username) != "" {
+				profile["username"] = username
+			}
 			if len(profile) > 0 {
 				payload.Profile = profile
+			}
+		}
+		if ident != nil {
+			if orgID := organizationIDFromMetadata(ident.MetadataPublic); orgID != nil {
+				payload.OrganizationID = orgID
 			}
 		}
 		if profileSource != "none" {
@@ -172,6 +183,23 @@ func (h *OAuthHandler) Session(
 		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, payload)
+}
+
+func organizationIDFromMetadata(metadata map[string]any) any {
+	if metadata == nil {
+		return nil
+	}
+
+	raw, ok := metadata["organization_id"]
+	if !ok {
+		return nil
+	}
+
+	if value, ok := raw.(string); ok && strings.TrimSpace(value) == "" {
+		return nil
+	}
+
+	return raw
 }
 
 func (h *OAuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {

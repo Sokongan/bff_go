@@ -1,8 +1,9 @@
 package identity_domain
 
 type Identity struct {
-	ID     string
-	Traits map[string]any
+	ID             string
+	Traits         map[string]any
+	MetadataPublic map[string]any
 }
 
 type ListIdentitiesParams struct {

@@ -44,8 +44,9 @@ func (g *IdentityBrowserGateway) WhoAmI(
 	}
 
 	return &identity_domain.Identity{
-		ID:     id,
-		Traits: identity_helper.ExtractTraits(identity.GetTraits()),
+		ID:             id,
+		Traits:         identity_helper.ExtractTraits(identity.GetTraits()),
+		MetadataPublic: identity_helper.ExtractTraits(identity.GetMetadataPublic()),
 	}, nil
 }
 
@@ -76,8 +77,9 @@ func (g *IdentityBrowserGateway) WhoAmIWithSessionToken(
 	}
 
 	return &identity_domain.Identity{
-		ID:     id,
-		Traits: identity_helper.ExtractTraits(identity.GetTraits()),
+		ID:             id,
+		Traits:         identity_helper.ExtractTraits(identity.GetTraits()),
+		MetadataPublic: identity_helper.ExtractTraits(identity.GetMetadataPublic()),
 	}, nil
 }
 
