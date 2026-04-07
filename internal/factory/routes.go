@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules/app"
 	"sso-bff/modules/audit"
 	identity_handler "sso-bff/modules/identity/handler"
@@ -37,24 +38,46 @@ type httpHandlers struct {
 	App              *app.AppHandler
 }
 
-func registerRoutes(mux *http.ServeMux, handlers httpHandlers) {
+type routeMiddleware struct {
+	requireSession func(http.HandlerFunc) http.HandlerFunc
+	requireAdmin   func(http.HandlerFunc) http.HandlerFunc
+}
+
+func newRouteMiddleware(auth *middleware.AuthMiddleware) routeMiddleware {
+	guards := routeMiddleware{
+		requireSession: identity,
+		requireAdmin:   identity,
+	}
+	if auth == nil {
+		return guards
+	}
+	guards.requireSession = auth.RequireSession
+	guards.requireAdmin = auth.RequireAdmin
+	return guards
+}
+
+func registerRoutes(
+	mux *http.ServeMux,
+	handlers httpHandlers,
+	guards routeMiddleware,
+) {
 	routeSpecs := []routeSpec{
 		{path: "/api/login", methods: []string{http.MethodGet}, handler: handlers.OAuth.Login},
 		{path: "/api/callback", methods: []string{http.MethodGet}, handler: handlers.OAuth.Callback},
 		{path: "/api/consent", methods: []string{http.MethodGet}, handler: handlers.OAuth.Consent},
-		{path: "/api/launch", methods: []string{http.MethodGet}, handler: handlers.OAuth.LaunchApp},
+		{path: "/api/launch", methods: []string{http.MethodGet}, handler: guards.requireSession(handlers.OAuth.LaunchApp)},
 		{path: "/api/logout", methods: []string{http.MethodPost}, handler: verbHandler(http.MethodPost, handlers.OAuth.Logout)},
 		{path: "/api/session", methods: []string{http.MethodGet}, handler: handlers.OAuth.Session},
 		{path: "/api/session/refresh", methods: []string{http.MethodPost}, handler: verbHandler(http.MethodPost, handlers.OAuth.Refresh)},
 		{path: "/api/identity/login", methods: []string{http.MethodPost}, handler: handlers.IdentityLogin.SubmitLogin},
-		{path: "/api/identity/settings", methods: []string{http.MethodGet, http.MethodPost}, handler: identitySettingsHandler(handlers.IdentitySettings)},
-		{path: "/api/admin/identities", methods: []string{http.MethodGet, http.MethodPost}, handler: identityAdminHandler(handlers.IdentityAdmin)},
-		{path: "/api/permissions/tuple", methods: []string{http.MethodPost}, handler: handlers.Permission.WriteTuple},
-		{path: "/api/permissions/check", methods: []string{http.MethodGet}, handler: handlers.Permission.CheckTuple},
-		{path: "/api/permissions", methods: []string{http.MethodGet}, handler: handlers.Permission.ListTuples},
-		{path: "/api/audit/events", methods: []string{http.MethodGet}, handler: handlers.Audit.List},
-		{path: "/api/apps", methods: []string{http.MethodGet, http.MethodPost}, handler: appRootHandler(handlers.App)},
-		{path: "/api/apps/", methods: []string{http.MethodGet, http.MethodPut, http.MethodDelete}, handler: appIDHandler(handlers.App)},
+		{path: "/api/identity/settings", methods: []string{http.MethodGet, http.MethodPost}, handler: guards.requireSession(identitySettingsHandler(handlers.IdentitySettings))},
+		{path: "/api/admin/identities", methods: []string{http.MethodGet, http.MethodPost}, handler: guards.requireAdmin(identityAdminHandler(handlers.IdentityAdmin))},
+		{path: "/api/permissions/tuple", methods: []string{http.MethodPost}, handler: guards.requireSession(handlers.Permission.WriteTuple)},
+		{path: "/api/permissions/check", methods: []string{http.MethodGet}, handler: guards.requireSession(handlers.Permission.CheckTuple)},
+		{path: "/api/permissions", methods: []string{http.MethodGet}, handler: guards.requireSession(handlers.Permission.ListTuples)},
+		{path: "/api/audit/events", methods: []string{http.MethodGet}, handler: guards.requireSession(handlers.Audit.List)},
+		{path: "/api/apps", methods: []string{http.MethodGet, http.MethodPost}, handler: guards.requireAdmin(appRootHandler(handlers.App))},
+		{path: "/api/apps/", methods: []string{http.MethodGet, http.MethodPut, http.MethodDelete}, handler: guards.requireAdmin(appIDHandler(handlers.App))},
 		{path: healthPath, methods: []string{http.MethodGet}, handler: healthCheckHandler()},
 	}
 
@@ -67,6 +90,10 @@ func registerRoutes(mux *http.ServeMux, handlers httpHandlers) {
 	})
 
 	mux.HandleFunc(discoveriesPath, discoveriesHandler(discoveryRoutes))
+}
+
+func identity(handler http.HandlerFunc) http.HandlerFunc {
+	return handler
 }
 
 func verbHandler(method string, handler http.HandlerFunc) http.HandlerFunc {

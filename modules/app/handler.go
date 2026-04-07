@@ -2,49 +2,29 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 
 	audit_domain "sso-bff/internal/domain/audit"
-	permission_domain "sso-bff/internal/domain/permission"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules/audit"
-	"sso-bff/modules/oauth"
-	"sso-bff/modules/permission"
 
 	"github.com/google/uuid"
 )
 
-var (
-	appAdminTuple = permission_domain.RelationTuple{
-		Namespace: "app",
-		Object:    "sso-portal",
-		Relation:  "admin",
-	}
-)
-
 type AppHandler struct {
-	Service    *AppService
-	Sessions   oauth.SessionResolver
-	Permission permission.PermissionChecker
-	Audit      audit.AuditWriter
-	Cookies    httpx.CookieConfig
+	Service *AppService
+	Audit   audit.AuditWriter
 }
 
 func NewAppHandler(
 	service *AppService,
-	sessions oauth.SessionResolver,
-	perm permission.PermissionChecker,
 	auditWriter audit.AuditWriter,
-	cookies httpx.CookieConfig,
 ) *AppHandler {
 	return &AppHandler{
-		Service:    service,
-		Sessions:   sessions,
-		Permission: perm,
-		Audit:      auditWriter,
-		Cookies:    cookies,
+		Service: service,
+		Audit:   auditWriter,
 	}
 }
 
@@ -57,7 +37,7 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	subject, ok := h.requireAdmin(w, r)
+	subject, ok := requestSubject(w, r)
 	if !ok {
 		return
 	}
@@ -113,7 +93,7 @@ func (h *AppHandler) List(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	_, ok := h.requireAdmin(w, r)
+	_, ok := requestSubject(w, r)
 	if !ok {
 		return
 	}
@@ -140,7 +120,7 @@ func (h *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	_, ok := h.requireAdmin(w, r)
+	_, ok := requestSubject(w, r)
 	if !ok {
 		return
 	}
@@ -177,7 +157,7 @@ func (h *AppHandler) Update(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	subject, ok := h.requireAdmin(w, r)
+	subject, ok := requestSubject(w, r)
 	if !ok {
 		return
 	}
@@ -243,7 +223,7 @@ func (h *AppHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	subject, ok := h.requireAdmin(w, r)
+	subject, ok := requestSubject(w, r)
 	if !ok {
 		return
 	}
@@ -271,70 +251,22 @@ func (h *AppHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *AppHandler) requireAdmin(w http.ResponseWriter, r *http.Request) (string, bool) {
-	if h == nil || h.Service == nil || h.Sessions == nil || h.Permission == nil {
+func requestSubject(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if r == nil {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": "app service unavailable"},
+			map[string]string{"error": "request unavailable"},
 		)
 		return "", false
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"},
-		)
-		return "", false
-	}
-
-	subject, err := h.Sessions.SubjectBySessionID(r.Context(), sessionID)
-	if err != nil {
-		if errors.Is(err, oauth.ErrSessionNotFound) {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"},
-			)
-			return "", false
-		}
+	subject, ok := middleware.SubjectFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()},
-		)
-		return "", false
-	}
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session subject"},
-		)
-		return "", false
-	}
-
-	tuple := appAdminTuple
-	tuple.SubjectID = subject
-
-	allowed, err := h.Permission.CheckTuple(r.Context(), tuple)
-	if err != nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusBadGateway,
-			map[string]string{"error": err.Error()},
-		)
-		return "", false
-	}
-
-	if !allowed {
-		httpx.WriteJSON(
-			w,
-			http.StatusForbidden,
-			map[string]string{"error": "admin access required"},
+			map[string]string{"error": "request subject unavailable"},
 		)
 		return "", false
 	}

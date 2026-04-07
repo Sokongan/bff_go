@@ -22,13 +22,6 @@ type InternalClient struct {
 	Scopes       []string
 }
 
-type M2MClient struct {
-	TokenURL  string
-	M2MID     string
-	M2MSecret string
-	Scopes    []string
-}
-
 type Session struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`

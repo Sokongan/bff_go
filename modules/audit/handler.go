@@ -3,31 +3,23 @@ package audit
 import (
 	"net/http"
 	"sso-bff/internal/httpx"
-	"sso-bff/modules/oauth"
+	"sso-bff/internal/middleware"
 	"strconv"
 )
 
 type AuditHandler struct {
-	Audit    *AuditService
-	Sessions oauth.SubjectResolver
-	Cookies  httpx.CookieConfig
+	Audit *AuditService
 }
 
-func NewAuditHandler(
-	auditSvc *AuditService,
-	sessions oauth.SubjectResolver,
-	cookies httpx.CookieConfig,
-) *AuditHandler {
+func NewAuditHandler(auditSvc *AuditService) *AuditHandler {
 	return &AuditHandler{
-		Audit:    auditSvc,
-		Sessions: sessions,
-		Cookies:  cookies,
+		Audit: auditSvc,
 	}
 }
 
 func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 
-	if h == nil || h.Audit == nil || h.Sessions == nil {
+	if h == nil || h.Audit == nil {
 		http.Error(
 			w,
 			"audit service unavailable",
@@ -35,23 +27,13 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		http.Error(w, "missing session token", http.StatusUnauthorized)
-		return
-	}
-
-	subject, err := h.Sessions.SubjectBySessionID(
-		r.Context(),
-		sessionID,
-	)
-
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			http.Error(w, "session not found", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	subject, ok := middleware.SubjectFromContext(r.Context())
+	if !ok {
+		httpx.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": "request subject unavailable"},
+		)
 		return
 	}
 

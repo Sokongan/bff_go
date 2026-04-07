@@ -7,35 +7,28 @@ import (
 	identity_domain "sso-bff/internal/domain/identity"
 	permission_domain "sso-bff/internal/domain/permission"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules/identity"
+	"sso-bff/modules/permission"
 
 	identity_factory_modules "sso-bff/modules/identity/factory/modules"
 	identity_helper "sso-bff/modules/identity/helper"
-	"sso-bff/modules/oauth"
-	"sso-bff/modules/permission"
 	"strconv"
 	"strings"
 )
 
 type IdentityAdminHandler struct {
 	Service    *identity_factory_modules.IdentityServices
-	Sessions   oauth.SessionResolver
-	Permission permission.PermissionChecker
-	Cookies    httpx.CookieConfig
+	Permission permission.TupleLister
 }
 
 func NewIdentityAdminHandler(
 	admin *identity_factory_modules.IdentityServices,
-	sessions oauth.SessionResolver,
-	permission permission.PermissionChecker,
-	cookies httpx.CookieConfig,
+	perm permission.TupleLister,
 ) *IdentityAdminHandler {
-
 	return &IdentityAdminHandler{
 		Service:    admin,
-		Sessions:   sessions,
-		Permission: permission,
-		Cookies:    cookies,
+		Permission: perm,
 	}
 }
 
@@ -43,8 +36,7 @@ func (h *IdentityAdminHandler) CreateIdentity(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if h == nil || h.Service == nil ||
-		h.Sessions == nil || h.Permission == nil {
+	if h == nil || h.Service == nil {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -61,63 +53,11 @@ func (h *IdentityAdminHandler) CreateIdentity(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"},
-		)
-		return
-	}
-
-	subject, err := h.Sessions.SubjectBySessionID(r.Context(), sessionID)
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"},
-			)
-			return
-		}
-
+	if _, ok := middleware.SubjectFromContext(r.Context()); !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()},
-		)
-		return
-	}
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session subject"},
-		)
-		return
-	}
-
-	allowed, err := h.Permission.CheckTuple(
-		r.Context(), permission_domain.RelationTuple{
-			Namespace: "app",
-			Object:    "sso-portal",
-			Relation:  "admin",
-			SubjectID: subject,
-		})
-	if err != nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusBadGateway,
-			map[string]string{"error": err.Error()},
-		)
-		return
-	}
-	if !allowed {
-		httpx.WriteJSON(
-			w,
-			http.StatusForbidden,
-			map[string]string{"error": "access required"},
+			map[string]string{"error": "request subject unavailable"},
 		)
 		return
 	}
@@ -168,8 +108,7 @@ func (h *IdentityAdminHandler) ListIdentities(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if h == nil || h.Service == nil ||
-		h.Sessions == nil || h.Permission == nil {
+	if h == nil || h.Service == nil {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -186,62 +125,11 @@ func (h *IdentityAdminHandler) ListIdentities(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"},
-		)
-		return
-	}
-	subject, err := h.Sessions.SubjectBySessionID(r.Context(), sessionID)
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"},
-			)
-			return
-		}
+	if _, ok := middleware.SubjectFromContext(r.Context()); !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()},
-		)
-		return
-	}
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session subject"},
-		)
-		return
-	}
-
-	allowed, err := h.Permission.CheckTuple(
-		r.Context(), permission_domain.RelationTuple{
-			Namespace: "app",
-			Object:    "sso-portal",
-			Relation:  "admin",
-			SubjectID: subject,
-		})
-
-	if err != nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusBadGateway,
-			map[string]string{"error": err.Error()},
-		)
-		return
-	}
-	if !allowed {
-		httpx.WriteJSON(
-			w,
-			http.StatusForbidden,
-			map[string]string{"error": "admin access required"},
+			map[string]string{"error": "request subject unavailable"},
 		)
 		return
 	}
@@ -336,12 +224,10 @@ func (h *IdentityAdminHandler) ListIdentities(
 	}
 
 	var bffSessionPayload map[string]any
-	if h.Sessions != nil {
-		if sess, err := h.Sessions.GetSession(r.Context(), sessionID); err == nil {
-			bffSessionPayload = map[string]any{
-				"subject": sess.Subject,
-				"exp":     sess.Expiry,
-			}
+	if sess, ok := middleware.SessionFromContext(r.Context()); ok {
+		bffSessionPayload = map[string]any{
+			"subject": sess.Subject,
+			"exp":     sess.Expiry,
 		}
 	}
 
@@ -387,7 +273,7 @@ func (h *IdentityAdminHandler) ListIdentities(
 			KratosSessions: kratosDevicesByIdentity[ident.ID],
 		}
 
-		if tuplesNamespace != "" {
+		if tuplesNamespace != "" && h.Permission != nil {
 			tupleParams := permission_domain.ListTuplesParams{
 				Namespace: tuplesNamespace,
 				Object:    tuplesObject,

@@ -36,10 +36,6 @@ type OauthAdminPort interface {
 	) (string, error)
 }
 
-type OAuthM2MPort interface {
-	Token(ctx context.Context, scopes []string) (*oauth2.Token, error)
-}
-
 type SessionStorePort interface {
 	SaveSession(
 		ctx context.Context,

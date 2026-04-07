@@ -5,15 +5,8 @@ import (
 	"testing"
 
 	audit_domain "sso-bff/internal/domain/audit"
-	"sso-bff/internal/httpx"
 	permission_sdk "sso-bff/modules/permission/sdk"
 )
-
-type stubSessionResolver struct{}
-
-func (stubSessionResolver) SubjectBySessionID(ctx context.Context, sessionID string) (string, error) {
-	return "subject", nil
-}
 
 type noopAuditWriter struct{}
 
@@ -23,7 +16,7 @@ func (noopAuditWriter) Insert(ctx context.Context, e audit_domain.AuditEvent) er
 
 func TestNewPermissionModule_Success(t *testing.T) {
 	sdk := permission_sdk.NewPermissionSDK("http://admin", "http://public")
-	module, err := NewPermissionModule(sdk, stubSessionResolver{}, noopAuditWriter{}, httpx.CookieConfig{})
+	module, err := NewPermissionModule(sdk, noopAuditWriter{})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -33,7 +26,7 @@ func TestNewPermissionModule_Success(t *testing.T) {
 }
 
 func TestNewPermissionModule_MissingSDK(t *testing.T) {
-	_, err := NewPermissionModule(nil, stubSessionResolver{}, noopAuditWriter{}, httpx.CookieConfig{})
+	_, err := NewPermissionModule(nil, noopAuditWriter{})
 	if err == nil {
 		t.Fatalf("expected error when sdk nil")
 	}

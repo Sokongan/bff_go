@@ -3,9 +3,7 @@ package permission_factory
 import (
 	"fmt"
 
-	"sso-bff/internal/httpx"
 	"sso-bff/modules/audit"
-	"sso-bff/modules/oauth"
 
 	permission_factory_modules "sso-bff/modules/permission/factory/modules"
 	permission_handler "sso-bff/modules/permission/handler"
@@ -19,9 +17,7 @@ type Module struct {
 
 func NewPermissionModule(
 	sdk *permission_sdk.PermissionSDK,
-	sessions oauth.SubjectResolver,
 	auditWriter audit.AuditWriter,
-	cookies httpx.CookieConfig,
 ) (*Module, error) {
 	if sdk == nil {
 		return nil, fmt.Errorf("permission sdk is nil")
@@ -33,7 +29,7 @@ func NewPermissionModule(
 	}
 
 	svc := permission_factory_modules.NewPermissionService(gw)
-	h := permission_handler.NewPermissionHandler(svc, sessions, auditWriter, cookies)
+	h := permission_handler.NewPermissionHandler(svc, auditWriter)
 
 	return &Module{
 		Service: svc,

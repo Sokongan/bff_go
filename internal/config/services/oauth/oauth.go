@@ -3,7 +3,6 @@ package oauth
 type OAuthConfig struct {
 	URLs   *URLConfig
 	Client *ClientConfig
-	M2M    *M2MConfig
 	Scopes *ClientScopesConfig
 	OIDC   *OIDCConfig
 	Cookie *CookieConfig
@@ -16,11 +15,6 @@ func LoadOAuthConfig() (*OAuthConfig, error) {
 	}
 
 	client, err := LoadClientConfig() // capture both values
-	if err != nil {
-		return nil, err
-	}
-
-	m2m, err := LoadM2MConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +32,6 @@ func LoadOAuthConfig() (*OAuthConfig, error) {
 	return &OAuthConfig{
 		URLs:   urls,
 		Client: client,
-		M2M:    m2m,
 		Scopes: scopes,
 		OIDC:   oidc,
 		Cookie: LoadCookieConfig(),

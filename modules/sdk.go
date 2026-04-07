@@ -32,19 +32,11 @@ func NewSDKs(cfg *config.Config) *SDKs {
 		Scopes:       cfg.Oauth.Scopes.BFFScopes,
 	}
 
-	m2m := oauth.M2MClient{
-		TokenURL:  cfg.Oauth.URLs.PublicURL,
-		M2MID:     cfg.Oauth.M2M.M2MID,
-		M2MSecret: cfg.Oauth.M2M.M2MSecret,
-		Scopes:    cfg.Oauth.Scopes.M2MScopes,
-	}
-
 	return &SDKs{
 		OAuth: oauth_sdk.NewOAuthSDK(
 			cfg.Oauth.URLs.AdminURL,
 			browser,
 			internal,
-			m2m,
 		),
 
 		Identity: identity_sdk.NewIdentitySDK(

@@ -127,12 +127,6 @@ func TestNewOauthModule_Success(t *testing.T) {
 			RedirectURL:  "http://internal/oauth2/callback",
 			Scopes:       []string{"openid"},
 		},
-		oauth.M2MClient{
-			TokenURL:  "http://public/oauth2/token",
-			M2MID:     "m2m",
-			M2MSecret: "secret",
-			Scopes:    []string{"api:read"},
-		},
 	)
 
 	module, err := NewOauthModule(

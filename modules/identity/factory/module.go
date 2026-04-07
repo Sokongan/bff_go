@@ -8,7 +8,6 @@ import (
 	identity_factory_modules "sso-bff/modules/identity/factory/modules"
 	identity_handler "sso-bff/modules/identity/handler"
 	identity_sdk "sso-bff/modules/identity/sdk"
-	"sso-bff/modules/oauth"
 	oauth_gateway "sso-bff/modules/oauth/gateway"
 	"sso-bff/modules/permission"
 )
@@ -23,8 +22,7 @@ type Module struct {
 func NewModule(
 	sdk *identity_sdk.IdentitySDK,
 	oauthAdmin *oauth_gateway.OauthAdminGateway,
-	sessions oauth.SessionResolver,
-	perm permission.PermissionChecker,
+	perm permission.TupleLister,
 	auditWriter audit.AuditWriter,
 	cookies httpx.CookieConfig,
 ) (*Module, error) {
@@ -56,15 +54,11 @@ func NewModule(
 
 	adminHandler := identity_handler.NewIdentityAdminHandler(
 		services,
-		sessions,
 		perm,
-		cookies,
 	)
 
 	settingsHandler := identity_handler.NewIdentitySettingsHandler(
 		services.Settings,
-		sessions,
-		cookies,
 	)
 
 	return &Module{

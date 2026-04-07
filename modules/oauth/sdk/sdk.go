@@ -5,7 +5,6 @@ import (
 
 	oauth "github.com/ory/hydra-client-go/v2"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
 type AuthorizationSDK struct {
@@ -16,14 +15,12 @@ type AuthorizationSDK struct {
 type OAuthSDK struct {
 	Admin         *oauth.APIClient
 	Authorization *AuthorizationSDK
-	M2M           *clientcredentials.Config
 }
 
 func NewOAuthSDK(
 	adminURL string,
 	browser oauth_types.BrowserClient,
 	internal oauth_types.InternalClient,
-	m2m oauth_types.M2MClient,
 ) *OAuthSDK {
 
 	auth := &AuthorizationSDK{
@@ -34,6 +31,5 @@ func NewOAuthSDK(
 	return &OAuthSDK{
 		Admin:         NewOauthAdminClient(adminURL),
 		Authorization: auth,
-		M2M:           NewOAuthM2MClient(m2m),
 	}
 }

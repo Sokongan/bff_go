@@ -6,6 +6,7 @@ import (
 	"sso-bff/internal/domain"
 	audit_domain "sso-bff/internal/domain/audit"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules/app"
 	"sso-bff/modules/audit"
 	"sso-bff/modules/identity"
@@ -252,17 +253,12 @@ func (h *OAuthHandler) LaunchApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		http.Error(w, "missing session token", http.StatusUnauthorized)
-		return
-	}
-	if _, err := h.OAuth.SessionService.GetSession(r.Context(), sessionID); err != nil {
-		if errors.Is(err, oauth.ErrSessionNotFound) {
-			http.Error(w, "session not found", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, ok := middleware.SessionFromContext(r.Context()); !ok {
+		httpx.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{"error": "request session unavailable"},
+		)
 		return
 	}
 

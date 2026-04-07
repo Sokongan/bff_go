@@ -11,6 +11,7 @@ import (
 	"sso-bff/internal/db"
 	permission_domain "sso-bff/internal/domain/permission"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules"
 	"sso-bff/modules/app"
 	app_adapter "sso-bff/modules/app/adapter"
@@ -109,9 +110,7 @@ func NewHandlers(cfg *config.Config, resources *db.Resources, sdks *modules.SDKs
 
 	permissionModule, err := permission_factory.NewPermissionModule(
 		sdks.Permission,
-		sessionService,
 		auditService,
-		cookieCfg,
 	)
 	if err != nil {
 		return nil, err
@@ -121,7 +120,6 @@ func NewHandlers(cfg *config.Config, resources *db.Resources, sdks *modules.SDKs
 	identityModule, err := identity_factory.NewModule(
 		sdks.Identity,
 		oauthAdmin,
-		sessionService,
 		permissionModule.Service,
 		auditService,
 		cookieCfg,
@@ -132,15 +130,16 @@ func NewHandlers(cfg *config.Config, resources *db.Resources, sdks *modules.SDKs
 
 	auditHandler := audit.NewAuditHandler(
 		auditService,
-		sessionService,
-		cookieCfg,
 	)
 
 	appHandler := app.NewAppHandler(
 		appService,
+		auditService,
+	)
+
+	authMiddleware := middleware.NewAuthMiddleware(
 		sessionService,
 		permissionModule.Service,
-		auditService,
 		cookieCfg,
 	)
 
@@ -153,7 +152,7 @@ func NewHandlers(cfg *config.Config, resources *db.Resources, sdks *modules.SDKs
 		Permission:       permissionModule.Handler,
 		Audit:            auditHandler,
 		App:              appHandler,
-	})
+	}, newRouteMiddleware(authMiddleware))
 
 	return &Module{Handler: mux}, nil
 }

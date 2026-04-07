@@ -9,29 +9,23 @@ import (
 	audit_domain "sso-bff/internal/domain/audit"
 	permission_domain "sso-bff/internal/domain/permission"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	"sso-bff/modules/audit"
-	"sso-bff/modules/oauth"
 	permission_factory_modules "sso-bff/modules/permission/factory/modules"
 )
 
 type PermissionHandler struct {
-	perm     *permission_factory_modules.PermissionService
-	sessions oauth.SubjectResolver
-	audit    audit.AuditWriter
-	cookies  httpx.CookieConfig
+	perm  *permission_factory_modules.PermissionService
+	audit audit.AuditWriter
 }
 
 func NewPermissionHandler(
 	perm *permission_factory_modules.PermissionService,
-	sessions oauth.SubjectResolver,
 	audit audit.AuditWriter,
-	cookies httpx.CookieConfig,
 ) *PermissionHandler {
 	return &PermissionHandler{
-		perm:     perm,
-		sessions: sessions,
-		audit:    audit,
-		cookies:  cookies,
+		perm:  perm,
+		audit: audit,
 	}
 }
 
@@ -50,16 +44,6 @@ func (h *PermissionHandler) WriteTuple(
 		return
 	}
 
-	if h.sessions == nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{
-				"error": "session service unavailable",
-			})
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		httpx.WriteJSON(
 			w,
@@ -70,50 +54,13 @@ func (h *PermissionHandler) WriteTuple(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.cookies)
-
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{
-				"error": "missing session token",
-			})
-		return
-	}
-
-	subject, err := h.sessions.SubjectBySessionID(
-		r.Context(),
-		sessionID,
-	)
-
-	if err != nil {
-
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{
-					"error": "session not found",
-				})
-			return
-		}
-
+	subject, ok := middleware.SubjectFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
 			map[string]string{
-				"error": err.Error(),
-			})
-		return
-	}
-
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{
-				"error": "missing session subject",
+				"error": "request subject unavailable",
 			})
 		return
 	}
@@ -187,14 +134,6 @@ func (h *PermissionHandler) CheckTuple(
 		return
 	}
 
-	if h.sessions == nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": "session service unavailable"})
-		return
-	}
-
 	if r.Method != http.MethodGet {
 		httpx.WriteJSON(
 			w,
@@ -203,40 +142,12 @@ func (h *PermissionHandler) CheckTuple(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.cookies)
-
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"})
-		return
-	}
-
-	subject, err := h.sessions.SubjectBySessionID(
-		r.Context(),
-		sessionID,
-	)
-
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"})
-			return
-		}
+	subject, ok := middleware.SubjectFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()})
-		return
-	}
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session subject"})
+			map[string]string{"error": "request subject unavailable"})
 		return
 	}
 
@@ -299,14 +210,6 @@ func (h *PermissionHandler) ListTuples(
 		return
 	}
 
-	if h.sessions == nil {
-		httpx.WriteJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{"error": "session service unavailable"})
-		return
-	}
-
 	if r.Method != http.MethodGet {
 		httpx.WriteJSON(
 			w,
@@ -315,40 +218,12 @@ func (h *PermissionHandler) ListTuples(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.cookies)
-
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"})
-		return
-	}
-
-	subject, err := h.sessions.SubjectBySessionID(
-		r.Context(),
-		sessionID,
-	)
-
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"})
-			return
-		}
+	subject, ok := middleware.SubjectFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()})
-		return
-	}
-	if strings.TrimSpace(subject) == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session subject"})
+			map[string]string{"error": "request subject unavailable"})
 		return
 	}
 

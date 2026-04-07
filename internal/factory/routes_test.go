@@ -24,7 +24,7 @@ func TestRegisterRoutes_AttachesHandlers(t *testing.T) {
 		Audit:            &audit.AuditHandler{},
 		App:              &app.AppHandler{},
 	}
-	registerRoutes(mux, handlers)
+	registerRoutes(mux, handlers, newRouteMiddleware(nil))
 
 	cases := []struct {
 		method string
@@ -66,7 +66,7 @@ func TestRegisterRoutes_AttachesHandlers(t *testing.T) {
 
 func TestRegisterRoutes_DiscoveriesPayload(t *testing.T) {
 	mux := http.NewServeMux()
-	registerRoutes(mux, stubHandlers())
+	registerRoutes(mux, stubHandlers(), newRouteMiddleware(nil))
 
 	req := httptest.NewRequest(http.MethodGet, discoveriesPath, nil)
 	rec := httptest.NewRecorder()

@@ -20,7 +20,7 @@ import (
 
 func TestRegisterRoutesRegistersEndpoints(t *testing.T) {
 	mux := http.NewServeMux()
-	registerRoutes(mux, stubHandlers())
+	registerRoutes(mux, stubHandlers(), newRouteMiddleware(nil))
 
 	paths := []struct {
 		method string
@@ -155,7 +155,6 @@ func minimalOAuthConfig() *oauthcfg.OAuthConfig {
 			AllowedClient: map[string]struct{}{"cid": {}},
 			AllowedScope:  map[string]struct{}{"scope": {}},
 			BFFScopes:     []string{"openid"},
-			M2MScopes:     []string{"api:read"},
 		},
 		OIDC: &oauthcfg.OIDCConfig{
 			Issuer: "https://issuer",

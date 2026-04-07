@@ -5,27 +5,19 @@ import (
 	"io"
 	"net/http"
 	"sso-bff/internal/httpx"
+	"sso-bff/internal/middleware"
 	identity_service "sso-bff/modules/identity/services"
-	"sso-bff/modules/oauth"
 
 	kratos "github.com/ory/kratos-client-go"
 )
 
 type IdentitySettingsHandler struct {
 	Settings *identity_service.IdentitySettingsService
-	Sessions oauth.SessionReader
-	Cookies  httpx.CookieConfig
 }
 
-func NewIdentitySettingsHandler(
-	settings *identity_service.IdentitySettingsService,
-	sessions oauth.SessionReader,
-	cookies httpx.CookieConfig,
-) *IdentitySettingsHandler {
+func NewIdentitySettingsHandler(settings *identity_service.IdentitySettingsService) *IdentitySettingsHandler {
 	return &IdentitySettingsHandler{
 		Settings: settings,
-		Sessions: sessions,
-		Cookies:  cookies,
 	}
 }
 
@@ -33,7 +25,7 @@ func (h *IdentitySettingsHandler) Start(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if h == nil || h.Settings == nil || h.Sessions == nil {
+	if h == nil || h.Settings == nil {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -50,32 +42,16 @@ func (h *IdentitySettingsHandler) Start(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"},
-		)
-		return
-	}
-	session, err := h.Sessions.GetSession(r.Context(), sessionID)
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"},
-			)
-			return
-		}
+	session, ok := middleware.SessionFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			len(map[string]string{"error": err.Error()}),
+			map[string]string{"error": "request session unavailable"},
 		)
 		return
 	}
+
 	if session.KratosToken == "" {
 		httpx.WriteJSON(
 			w,
@@ -102,7 +78,7 @@ func (h *IdentitySettingsHandler) Submit(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if h == nil || h.Settings == nil || h.Sessions == nil {
+	if h == nil || h.Settings == nil {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -148,32 +124,16 @@ func (h *IdentitySettingsHandler) Submit(
 		return
 	}
 
-	sessionID := httpx.SessionIDFromRequest(r, h.Cookies)
-	if sessionID == "" {
-		httpx.WriteJSON(
-			w,
-			http.StatusUnauthorized,
-			map[string]string{"error": "missing session token"},
-		)
-		return
-	}
-	session, err := h.Sessions.GetSession(r.Context(), sessionID)
-	if err != nil {
-		if err == oauth.ErrSessionNotFound {
-			httpx.WriteJSON(
-				w,
-				http.StatusUnauthorized,
-				map[string]string{"error": "session not found"},
-			)
-			return
-		}
+	session, ok := middleware.SessionFromContext(r.Context())
+	if !ok {
 		httpx.WriteJSON(
 			w,
 			http.StatusInternalServerError,
-			map[string]string{"error": err.Error()},
+			map[string]string{"error": "request session unavailable"},
 		)
 		return
 	}
+
 	if session.KratosToken == "" {
 		httpx.WriteJSON(
 			w,
